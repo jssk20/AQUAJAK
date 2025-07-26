@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Water Flow Monitor</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.22.2/firebase-app-compat.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.22.2/firebase-database-compat.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .status-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .card {
+            background: rgba(255,255,255,0.95);
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
+            backdrop-filter: blur(4px);
+            border: 1px solid rgba(255,255,255,0.18);
+            transition: transform 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+        }
+
+        .card-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 15px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .card-value {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: #4a90e2;
+            margin-bottom: 5px;
+        }
+
+        .card-unit {
+            font-size: 1rem;
+            color: #666;
+        }
+
+        .chart-container {
+            background: rgba(255,255,255,0.95);
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
+        }
+
+        .chart-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 10px;
+        }
+
+        .status-online {
+            background-color: #4CAF50;
+            animation: pulse 2s infinite;
+        }
+
+        .status-offline {
+            background-color: #f44336;
+        }
+
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(76, 175, 80, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(76, 175, 80, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(76, 175, 80, 0); }
+        }
+
+        .loading {
+            text-align: center;
+            color: white;
+            font-size: 1.2rem;
+            margin-top: 50px;
+        }
+
+        .error-message {
+            background: rgba(244, 67, 54, 0.9);
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>💧 Water Flow Monitor</h1>
+            <p><span id="connectionStatus" class="status-indicator status-offline"></span>Device Status</p>
+        </div>
+
+        <div id="errorMessage" class="error-message" style="display: none;"></div>
+
+        <div class="status-cards">
+            <div class="card">
+                <div class="card-title">Current Flow Rate</div>
+                <div class="card-value" id="currentFlow">0.0</div>
+                <div class="card-unit">L/min</div>
+            </div>
+            <div class="card">
+                <div class="card-title">Total Volume</div>
+                <div class="card-value" id="totalVolume">0.0</div>
+                <div class="card-unit">Liters</div>
+            </div>
+            <div class="card">
+                <div class="card-title">Daily Usage</div>
+                <div class="card-value" id="dailyUsage">0.0</div>
+                <div class="card-unit">Liters</div>
+            </div>
+            <div class="card">
+                <div class="card-title">Last Updated</div>
+                <div class="card-value" id="lastUpdate" style="font-size: 1.5rem;">--:--</div>
+                <div class="card-unit">Time</div>
+            </div>
+        </div>
+
+        <div class="chart-container">
+            <div class="chart-title">Flow Rate History (Last 24 Hours)</div>
+            <canvas id="flowChart" width="400" height="200"></canvas>
+        </div>
+    </div>
+ 
+    <script>
+        // Firebase configuration - REPLACE WITH YOUR CONFIG
+        const firebaseConfig = {
+            apiKey: "AIzaSyB0r-ecCpjmmTskle8pM-HC4JvBteHSsx4",
+  authDomain: "uptrack-productivity-tool.firebaseapp.com",
+  databaseURL: "https://uptrack-productivity-tool-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "uptrack-productivity-tool",
+  storageBucket: "uptrack-productivity-tool.firebasestorage.app",
+  messagingSenderId: "181612373741",
+  appId: "1:181612373741:web:56181e3b580d96b55c4ee4",
+  measurementId: "G-WBJGQVDNZL"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
+
+        // Chart setup
+        let flowChart;
+        let chartData = {
+            labels: [],
+            datasets: [{
+                label: 'Flow Rate (L/min)',
+                data: [],
+                borderColor: '#4a90e2',
+                backgroundColor: 'rgba(74, 144, 226, 0.1)',
+                borderWidth: 2,
+                fill: true,
+                tension: 0.4
+            }]
+        };
+
+        // Initialize dashboard immediately
+        initializeDashboard();
+
+        function initializeDashboard() {
+            try {
+                // Initialize chart
+                const ctx = document.getElementById('flowChart').getContext('2d');
+                flowChart = new Chart(ctx, {
+                    type: 'line',
+                    data: chartData,
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                title: {
+                                    display: true,
+                                    text: 'Flow Rate (L/min)'
+                                }
+                            },
+                            x: {
+                                title: {
+                                    display: true,
+                                    text: 'Time'
+                                }
+                            }
+                        },
+                        plugins: {
+                            legend: {
+                                display: true,
+                                position: 'top'
+                            }
+                        }
+                    }
+                });
+
+                // Listen for current data updates
+                database.ref('current').on('value', (snapshot) => {
+                    const data = snapshot.val();
+                    if (data) {
+                        updateCurrentReadings(data);
+                    } else {
+                        showError("No data received from ESP32. Check device connection.");
+                    }
+                }, (error) => {
+                    showError("Database connection failed: " + error.message);
+                });
+
+                // Load historical data
+                loadHistoricalData();
+                
+                // Auto-refresh historical data every 5 minutes
+                setInterval(loadHistoricalData, 5 * 60 * 1000);
+
+                console.log("Dashboard initialized successfully");
+                
+            } catch (error) {
+                showError("Dashboard initialization failed: " + error.message);
+            }
+        }
+
+        function updateCurrentReadings(data) {
+            document.getElementById('currentFlow').textContent = data.flow_rate ? data.flow_rate.toFixed(1) : '0.0';
+            document.getElementById('totalVolume').textContent = data.total_volume ? data.total_volume.toFixed(1) : '0.0';
+            
+            if (data.timestamp) {
+                const date = new Date(data.timestamp);
+                document.getElementById('lastUpdate').textContent = date.toLocaleTimeString();
+                
+                // Update connection status
+                const now = new Date().getTime();
+                const isOnline = (now - data.timestamp) < 30000; // 30 seconds threshold
+                const statusElement = document.getElementById('connectionStatus');
+                statusElement.className = `status-indicator ${isOnline ? 'status-online' : 'status-offline'}`;
+            }
+
+            // Hide error message if data is received
+            hideError();
+        }
+
+        function loadHistoricalData() {
+            const now = Date.now();
+            const oneDayAgo = now - (24 * 60 * 60 * 1000);
+
+            database.ref('water_flow_data')
+                .orderByKey()
+                .startAt(oneDayAgo.toString())
+                .once('value', (snapshot) => {
+                    const data = snapshot.val();
+                    if (data) {
+                        processHistoricalData(data);
+                    }
+                })
+                .catch((error) => {
+                    console.error("Failed to load historical data:", error);
+                });
+        }
+
+        function processHistoricalData(data) {
+            const entries = Object.values(data).sort((a, b) => a.timestamp - b.timestamp);
+            
+            // Update chart data
+            chartData.labels = [];
+            chartData.datasets[0].data = [];
+            
+            let dailyTotal = 0;
+            const today = new Date().toDateString();
+            
+            entries.forEach(entry => {
+                const date = new Date(entry.timestamp);
+                chartData.labels.push(date.toLocaleTimeString());
+                chartData.datasets[0].data.push(entry.flow_rate || 0);
+                
+                // Calculate daily usage
+                if (date.toDateString() === today) {
+                    dailyTotal += (entry.flow_rate || 0) / 60; // Convert to liters per second, then accumulate
+                }
+            });
+
+            // Keep only last 50 data points for performance
+            if (chartData.labels.length > 50) {
+                chartData.labels = chartData.labels.slice(-50);
+                chartData.datasets[0].data = chartData.datasets[0].data.slice(-50);
+            }
+
+            document.getElementById('dailyUsage').textContent = dailyTotal.toFixed(1);
+            
+            if (flowChart) {
+                flowChart.update();
+            }
+        }
+
+        function showError(message) {
+            const errorDiv = document.getElementById('errorMessage');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+        }
+
+        function hideError() {
+            document.getElementById('errorMessage').style.display = 'none';
+        }
+
+        // Test database connection on load
+        database.ref('.info/connected').on('value', (snapshot) => {
+            if (snapshot.val() === true) {
+                console.log('Connected to Firebase');
+                hideError();
+            } else {
+                showError('Disconnected from Firebase. Check your internet connection.');
+            }
+        });
+    </script>
+</body>
+</html>
