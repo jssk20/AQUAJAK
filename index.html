@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Water Flow - Realtime Database</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.23.0/firebase-app-compat.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.23.0/firebase-database-compat.min.js"></script>
+    <title>Water Positivity Monitoring Dashboard</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.22.0/firebase-app-compat.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.22.0/firebase-database-compat.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
     <style>
         * {
@@ -15,387 +15,586 @@
         }
         
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: 'Arial', sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
             min-height: 100vh;
-            padding: 20px;
-        }
-        
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            background: rgba(255, 255, 255, 0.95);
-            border-radius: 20px;
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
-            backdrop-filter: blur(10px);
-            overflow: hidden;
         }
         
         .header {
-            background: linear-gradient(45deg, #ff6b6b 0%, #ffa500 100%);
-            color: white;
-            padding: 30px;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 20px 0;
             text-align: center;
+            box-shadow: 0 2px 20px rgba(0,0,0,0.1);
         }
         
         .header h1 {
-            font-size: 2.5rem;
+            color: #2c3e50;
+            font-size: 2.5em;
             margin-bottom: 10px;
-            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
         }
         
-        .stats-grid {
+        .header p {
+            color: #7f8c8d;
+            font-size: 1.2em;
+        }
+        
+        .dashboard {
+            max-width: 1400px;
+            margin: 40px auto;
+            padding: 0 20px;
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 20px;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 30px;
+        }
+        
+        .card {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
             padding: 30px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
         }
         
-        .stat-card {
-            background: white;
-            border-radius: 15px;
-            padding: 25px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-            border-left: 5px solid;
-            transition: transform 0.3s ease;
-        }
-        
-        .stat-card:hover {
+        .card:hover {
             transform: translateY(-5px);
+            box-shadow: 0 20px 60px rgba(0,0,0,0.15);
         }
         
-        .stat-card.flow-rate { border-left-color: #ff6b6b; }
-        .stat-card.total-volume { border-left-color: #4ecdc4; }
-        .stat-card.status { border-left-color: #ffa500; }
+        .card h3 {
+            color: #2c3e50;
+            margin-bottom: 20px;
+            font-size: 1.4em;
+            border-bottom: 3px solid #3498db;
+            padding-bottom: 10px;
+        }
         
-        .stat-value {
-            font-size: 2.5rem;
+        .metric {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 15px 0;
+            padding: 15px;
+            background: linear-gradient(90deg, #f8f9fa, #e9ecef);
+            border-radius: 10px;
+            transition: background 0.3s ease;
+        }
+        
+        .metric:hover {
+            background: linear-gradient(90deg, #e3f2fd, #bbdefb);
+        }
+        
+        .metric-label {
             font-weight: bold;
-            margin-bottom: 10px;
+            color: #34495e;
         }
         
-        .stat-label {
-            color: #666;
-            font-size: 0.9rem;
-            text-transform: uppercase;
-            letter-spacing: 1px;
+        .metric-value {
+            font-size: 1.3em;
+            font-weight: bold;
+            color: #2980b9;
+        }
+        
+        .status-positive {
+            color: #27ae60 !important;
+        }
+        
+        .status-warning {
+            color: #f39c12 !important;
+        }
+        
+        .status-critical {
+            color: #e74c3c !important;
         }
         
         .chart-container {
-            background: white;
-            border-radius: 15px;
-            padding: 25px;
-            margin: 25px 30px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            position: relative;
+            height: 300px;
+            margin-top: 20px;
         }
         
-        .status-indicator {
-            display: inline-block;
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-            margin-right: 8px;
+        .large-card {
+            grid-column: span 2;
+        }
+        
+        .image-preview {
+            max-width: 100%;
+            border-radius: 10px;
+            margin-top: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        
+        .alert {
+            background: linear-gradient(90deg, #ff6b6b, #feca57);
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 10px 0;
+            font-weight: bold;
             animation: pulse 2s infinite;
         }
         
-        .status-connected { background-color: #4ecdc4; }
-        .status-disconnected { background-color: #ff6b6b; }
-        
         @keyframes pulse {
             0% { opacity: 1; }
-            50% { opacity: 0.5; }
+            50% { opacity: 0.7; }
             100% { opacity: 1; }
         }
         
         .controls {
-            background: white;
-            border-radius: 15px;
-            padding: 25px;
-            margin: 0 30px 30px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
             display: flex;
             gap: 15px;
-            flex-wrap: wrap;
-            justify-content: center;
+            margin-top: 20px;
         }
         
         .btn {
-            background: linear-gradient(45deg, #ff6b6b 0%, #ffa500 100%);
+            background: linear-gradient(45deg, #3498db, #2980b9);
             color: white;
             border: none;
             padding: 12px 24px;
             border-radius: 25px;
             cursor: pointer;
-            font-size: 1rem;
+            font-size: 1em;
             transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(52, 152, 219, 0.3);
         }
         
         .btn:hover {
             transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+            box-shadow: 0 8px 25px rgba(52, 152, 219, 0.4);
         }
         
-        .error {
-            background: #ffebee;
-            color: #c62828;
-            padding: 15px;
+        .btn-danger {
+            background: linear-gradient(45deg, #e74c3c, #c0392b);
+            box-shadow: 0 4px 15px rgba(231, 76, 60, 0.3);
+        }
+        
+        .btn-danger:hover {
+            box-shadow: 0 8px 25px rgba(231, 76, 60, 0.4);
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background: #ecf0f1;
             border-radius: 10px;
-            margin: 20px;
-            text-align: center;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #3498db, #2ecc71);
+            transition: width 0.5s ease;
+            border-radius: 10px;
+        }
+        
+        @media (max-width: 768px) {
+            .dashboard {
+                grid-template-columns: 1fr;
+                padding: 0 15px;
+            }
+            
+            .large-card {
+                grid-column: span 1;
+            }
+            
+            .header h1 {
+                font-size: 2em;
+            }
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <h1>🔥 Water Flow - Realtime Database</h1>
-            <p>Real-time monitoring with Firebase Realtime Database</p>
+    <div class="header">
+        <h1>🌊 Water Positivity Monitor</h1>
+        <p>Real-time Water Consumption & Replenishment Tracking</p>
+    </div>
+    
+    <div class="dashboard">
+        <!-- Real-time Metrics -->
+        <div class="card">
+            <h3>📊 Current Metrics</h3>
+            <div class="metric">
+                <span class="metric-label">Flow Rate</span>
+                <span class="metric-value" id="flowRate">-- L/min</span>
+            </div>
+            <div class="metric">
+                <span class="metric-label">Total Volume</span>
+                <span class="metric-value" id="totalVolume">-- L</span>
+            </div>
+            <div class="metric">
+                <span class="metric-label">Water Level</span>
+                <span class="metric-value" id="waterLevel">-- cm</span>
+            </div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="levelProgress"></div>
+            </div>
         </div>
         
-        <div class="stats-grid">
-            <div class="stat-card flow-rate">
-                <div class="stat-value" id="flowRate">0.00</div>
-                <div class="stat-label">L/min Flow Rate</div>
+        <!-- Water Positivity Status -->
+        <div class="card">
+            <h3>🎯 Positivity Status</h3>
+            <div class="metric">
+                <span class="metric-label">Replenishment Ratio</span>
+                <span class="metric-value" id="replenishmentRatio">--</span>
             </div>
-            <div class="stat-card total-volume">
-                <div class="stat-value" id="totalVolume">0.00</div>
-                <div class="stat-label">L Total Volume</div>
+            <div class="metric">
+                <span class="metric-label">Target Achievement</span>
+                <span class="metric-value" id="targetStatus">--</span>
             </div>
-            <div class="stat-card status">
-                <div class="stat-value">
-                    <span class="status-indicator" id="statusIndicator"></span>
-                    <span id="connectionStatus">Connecting...</span>
-                </div>
-                <div class="stat-label">System Status</div>
+            <div class="metric">
+                <span class="metric-label">Water Balance</span>
+                <span class="metric-value" id="waterBalance">-- L</span>
+            </div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="positivityProgress"></div>
             </div>
         </div>
         
-        <div class="chart-container">
-            <h3>Real-time Flow Rate</h3>
-            <canvas id="flowChart" width="400" height="200"></canvas>
+        <!-- Live Camera Feed -->
+        <div class="card">
+            <h3>📹 Live Monitoring</h3>
+            <img id="liveImage" class="image-preview" src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZGRkIi8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxNiIgZmlsbD0iIzk5OSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPkxpdmUgQ2FtZXJhIEZlZWQ8L3RleHQ+PC9zdmc+" alt="Loading...">
+            <div class="controls">
+                <button class="btn" onclick="refreshImage()">🔄 Refresh</button>
+                <button class="btn" onclick="captureImage()">📸 Capture</button>
+            </div>
         </div>
         
-        <div class="controls">
-            <button class="btn" onclick="testConnection()">Test Connection</button>
-            <button class="btn" onclick="addTestData()">Add Test Data</button>
-            <button class="btn" onclick="showDebugInfo()">Debug Info</button>
+        <!-- System Controls -->
+        <div class="card">
+            <h3>⚙️ System Controls</h3>
+            <div class="metric">
+                <span class="metric-label">Pump Status</span>
+                <span class="metric-value" id="pumpStatus">OFF</span>
+            </div>
+            <div class="controls">
+                <button class="btn" onclick="controlPump(true)">💧 Start Pump</button>
+                <button class="btn btn-danger" onclick="controlPump(false)">⏹️ Stop Pump</button>
+            </div>
+            <div class="metric">
+                <span class="metric-label">Last Update</span>
+                <span class="metric-value" id="lastUpdate">--</span>
+            </div>
+        </div>
+        
+        <!-- Alerts -->
+        <div class="card">
+            <h3>🚨 Alerts & Notifications</h3>
+            <div id="alertContainer">
+                <p style="color: #7f8c8d; text-align: center;">No active alerts</p>
+            </div>
+        </div>
+        
+        <!-- Historical Chart -->
+        <div class="card large-card">
+            <h3>📈 Historical Trends</h3>
+            <div class="chart-container">
+                <canvas id="trendChart"></canvas>
+            </div>
+        </div>
+        
+        <!-- ESG Reporting -->
+        <div class="card large-card">
+            <h3>📋 Sustainability Report</h3>
+            <div class="metric">
+                <span class="metric-label">Daily Consumption</span>
+                <span class="metric-value" id="dailyConsumption">-- L</span>
+            </div>
+            <div class="metric">
+                <span class="metric-label">Daily Replenishment</span>
+                <span class="metric-value" id="dailyReplenishment">-- L</span>
+            </div>
+            <div class="metric">
+                <span class="metric-label">Water Savings</span>
+                <span class="metric-value" id="waterSavings">-- L</span>
+            </div>
+            <div class="controls">
+                <button class="btn" onclick="generateReport()">📊 Generate Report</button>
+                <button class="btn" onclick="exportData()">💾 Export Data</button>
+            </div>
         </div>
     </div>
-
+    
     <script>
-        // Firebase Configuration for Realtime Database
+        // Firebase configuration - REPLACE WITH YOUR CONFIG
         const firebaseConfig = {
-          apiKey: "AIzaSyBUorLVBU0SxhX3xLdmzc21JcLhUyl974c",
-  authDomain: "aqua-jak-db26a.firebaseapp.com",
-  projectId: "aqua-jak-db26a",
-  storageBucket: "aqua-jak-db26a.firebasestorage.app",
-  messagingSenderId: "511642149238",
-  appId: "1:511642149238:web:fa202dd9ae4f4400155a57",
-  measurementId: "G-42PQMQNXF6",
-            databaseURL: "https://aqua-jak-db26a-default-rtdb.firebaseio.com/"
+            apiKey: "your-api-key",
+            authDomain: "your-project.firebaseapp.com",
+            databaseURL: "https://your-project-default-rtdb.firebaseio.com",
+            projectId: "your-project-id",
+            storageBucket: "your-project.appspot.com",
+            messagingSenderId: "123456789",
+            appId: "your-app-id"
         };
-
-        // Initialize Firebase
+        
         firebase.initializeApp(firebaseConfig);
         const database = firebase.database();
-
-        let flowChart;
-
-        // Initialize chart
-        function initChart() {
-            const ctx = document.getElementById('flowChart').getContext('2d');
-            flowChart = new Chart(ctx, {
+        
+        let trendChart;
+        let historicalData = [];
+        
+        // Initialize dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeChart();
+            startRealTimeUpdates();
+            loadHistoricalData();
+        });
+        
+        function initializeChart() {
+            const ctx = document.getElementById('trendChart').getContext('2d');
+            trendChart = new Chart(ctx, {
                 type: 'line',
                 data: {
                     labels: [],
                     datasets: [{
+                        label: 'Water Level (cm)',
+                        data: [],
+                        borderColor: '#3498db',
+                        backgroundColor: 'rgba(52, 152, 219, 0.1)',
+                        tension: 0.4
+                    }, {
                         label: 'Flow Rate (L/min)',
                         data: [],
-                        borderColor: '#ff6b6b',
-                        backgroundColor: 'rgba(255, 107, 107, 0.1)',
-                        tension: 0.4,
-                        fill: true
+                        borderColor: '#e74c3c',
+                        backgroundColor: 'rgba(231, 76, 60, 0.1)',
+                        tension: 0.4
                     }]
                 },
                 options: {
                     responsive: true,
+                    maintainAspectRatio: false,
                     scales: {
                         y: {
-                            beginAtZero: true,
-                            title: {
-                                display: true,
-                                text: 'Flow Rate (L/min)'
-                            }
+                            beginAtZero: true
                         }
                     },
                     plugins: {
                         legend: {
-                            display: false
+                            position: 'top'
                         }
                     }
                 }
             });
         }
-
-        // Setup real-time listener for Realtime Database
-        function setupRealtimeListener() {
-            console.log('Setting up Realtime Database listener...');
-            
-            // Listen to the waterFlow node
-            const waterFlowRef = database.ref('waterFlow');
-            
-            waterFlowRef.on('value', (snapshot) => {
+        
+        function startRealTimeUpdates() {
+            // Listen for latest data updates
+            database.ref('latest').on('value', (snapshot) => {
                 const data = snapshot.val();
-                console.log('Realtime Database data received:', data);
-                
                 if (data) {
-                    updateUI(data);
-                    updateChart(data);
-                    updateConnectionStatus(true);
-                } else {
-                    console.log('No data available');
-                    updateConnectionStatus(false);
+                    updateMetrics(data);
                 }
-            }, (error) => {
-                console.error('Realtime Database error:', error);
-                updateConnectionStatus(false);
-                showErrorMessage('Database connection error: ' + error.message);
+            });
+            
+            // Listen for alerts
+            database.ref('alerts').limitToLast(5).on('value', (snapshot) => {
+                const alerts = snapshot.val();
+                if (alerts) {
+                    updateAlerts(alerts);
+                }
+            });
+            
+            // Listen for images
+            database.ref('images').limitToLast(1).on('value', (snapshot) => {
+                const images = snapshot.val();
+                if (images) {
+                    const latestImage = Object.values(images)[0];
+                    updateImage(latestImage);
+                }
             });
         }
-
-        // Update UI elements
-        function updateUI(data) {
-            console.log('Updating UI with:', data);
+        
+        function updateMetrics(data) {
+            document.getElementById('flowRate').textContent = `${data.flowRate?.toFixed(2) || 0} L/min`;
+            document.getElementById('totalVolume').textContent = `${data.totalVolume?.toFixed(0) || 0} L`;
+            document.getElementById('waterLevel').textContent = `${data.waterLevel?.toFixed(1) || 0} cm`;
             
-            document.getElementById('flowRate').textContent = (data.flowRate || 0).toFixed(2);
-            document.getElementById('totalVolume').textContent = (data.totalVolume || 0).toFixed(2);
+            // Update progress bars
+            const levelPercent = ((data.waterLevel || 0) / 200) * 100;
+            document.getElementById('levelProgress').style.width = `${levelPercent}%`;
             
-            const timestamp = new Date(parseInt(data.timestamp) || Date.now());
-            document.getElementById('connectionStatus').textContent = `Connected (${timestamp.toLocaleTimeString()})`;
+            // Update replenishment ratio
+            const ratio = data.replenishmentRatio || 0;
+            document.getElementById('replenishmentRatio').textContent = ratio.toFixed(2);
+            
+            // Update status colors
+            const ratioElement = document.getElementById('replenishmentRatio');
+            if (ratio >= 1.0) {
+                ratioElement.className = 'metric-value status-positive';
+                document.getElementById('targetStatus').textContent = '✅ Achieved';
+                document.getElementById('targetStatus').className = 'metric-value status-positive';
+            } else if (ratio >= 0.8) {
+                ratioElement.className = 'metric-value status-warning';
+                document.getElementById('targetStatus').textContent = '⚠️ Near Target';
+                document.getElementById('targetStatus').className = 'metric-value status-warning';
+            } else {
+                ratioElement.className = 'metric-value status-critical';
+                document.getElementById('targetStatus').textContent = '❌ Below Target';
+                document.getElementById('targetStatus').className = 'metric-value status-critical';
+            }
+            
+            // Update positivity progress
+            const positivityPercent = Math.min(ratio * 100, 100);
+            document.getElementById('positivityProgress').style.width = `${positivityPercent}%`;
+            
+            // Calculate water balance
+            const balance = (data.totalVolume || 0) * (ratio - 1);
+            document.getElementById('waterBalance').textContent = `${balance.toFixed(0)} L`;
+            document.getElementById('waterBalance').className = balance >= 0 ? 'metric-value status-positive' : 'metric-value status-critical';
+            
+            // Update last update time
+            document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString();
+            
+            // Add to historical data
+            addToHistoricalData(data);
         }
-
-        // Update chart
-        function updateChart(data) {
-            if (!flowChart) return;
+        
+        function updateAlerts(alerts) {
+            const container = document.getElementById('alertContainer');
+            container.innerHTML = '';
             
-            const now = new Date();
-            const timeLabel = now.toLocaleTimeString();
-            const flowRate = data.flowRate || 0;
-
-            flowChart.data.labels.push(timeLabel);
-            flowChart.data.datasets[0].data.push(flowRate);
+            const alertArray = Object.values(alerts).reverse();
+            
+            if (alertArray.length === 0) {
+                container.innerHTML = '<p style="color: #7f8c8d; text-align: center;">No active alerts</p>';
+                return;
+            }
+            
+            alertArray.forEach(alert => {
+                const alertDiv = document.createElement('div');
+                alertDiv.className = 'alert';
+                alertDiv.innerHTML = `
+                    <strong>${new Date(alert.timestamp * 1000).toLocaleString()}</strong><br>
+                    ${alert.message}
+                `;
+                container.appendChild(alertDiv);
+            });
+        }
+        
+        function updateImage(imageBase64) {
+            const img = document.getElementById('liveImage');
+            img.src = `data:image/jpeg;base64,${imageBase64}`;
+        }
+        
+        function addToHistoricalData(data) {
+            const now = new Date().toLocaleTimeString();
+            historicalData.push({
+                time: now,
+                waterLevel: data.waterLevel || 0,
+                flowRate: data.flowRate || 0
+            });
             
             // Keep only last 20 data points
-            if (flowChart.data.labels.length > 20) {
-                flowChart.data.labels.shift();
-                flowChart.data.datasets[0].data.shift();
+            if (historicalData.length > 20) {
+                historicalData.shift();
             }
             
-            flowChart.update('none');
+            // Update chart
+            trendChart.data.labels = historicalData.map(d => d.time);
+            trendChart.data.datasets[0].data = historicalData.map(d => d.waterLevel);
+            trendChart.data.datasets[1].data = historicalData.map(d => d.flowRate);
+            trendChart.update();
         }
-
-        // Update connection status
-        function updateConnectionStatus(connected) {
-            const statusIndicator = document.getElementById('statusIndicator');
-            const statusText = document.getElementById('connectionStatus');
-            
-            if (connected) {
-                statusIndicator.className = 'status-indicator status-connected';
-                if (!statusText.textContent.includes('Connected')) {
-                    statusText.textContent = 'Connected';
-                }
-            } else {
-                statusIndicator.className = 'status-indicator status-disconnected';
-                statusText.textContent = 'Disconnected';
-            }
+        
+        function controlPump(state) {
+            database.ref('controls/pumpCommand').set(state);
+            document.getElementById('pumpStatus').textContent = state ? 'ON' : 'OFF';
+            document.getElementById('pumpStatus').className = state ? 'metric-value status-positive' : 'metric-value status-critical';
         }
-
-        // Test connection
-        function testConnection() {
-            console.log('Testing Realtime Database connection...');
-            
-            database.ref('.info/connected').once('value', (snapshot) => {
-                if (snapshot.val() === true) {
-                    console.log('✅ Connected to Realtime Database');
-                    alert('✅ Connected to Realtime Database!');
-                } else {
-                    console.log('❌ Not connected to Realtime Database');
-                    alert('❌ Not connected to Realtime Database');
+        
+        function refreshImage() {
+            database.ref('controls/captureCommand').set(Date.now());
+        }
+        
+        function captureImage() {
+            database.ref('controls/captureCommand').set(Date.now());
+            setTimeout(() => {
+                alert('Image captured and uploaded to Firebase!');
+            }, 2000);
+        }
+        
+        function loadHistoricalData() {
+            database.ref('water_monitoring').limitToLast(50).on('value', (snapshot) => {
+                const data = snapshot.val();
+                if (data) {
+                    calculateDailyMetrics(data);
                 }
             });
         }
-
-        // Add test data
-        function addTestData() {
-            const testData = {
-                flowRate: Math.random() * 3 + 1,
-                totalVolume: Math.random() * 100 + 50,
-                timestamp: Date.now().toString(),
-                sensorStatus: 'active',
-                deviceId: 'TEST_DEVICE',
-                wifiRSSI: -45
+        
+        function calculateDailyMetrics(data) {
+            const today = new Date().toDateString();
+            let dailyConsumption = 0;
+            let dailyReplenishment = 0;
+            
+            Object.values(data).forEach(record => {
+                const recordDate = new Date(record.timestamp * 1000).toDateString();
+                if (recordDate === today) {
+                    dailyConsumption += parseFloat(record.totalVolume || 0);
+                    dailyReplenishment += parseFloat(record.totalVolume || 0) * parseFloat(record.replenishmentRatio || 0);
+                }
+            });
+            
+            document.getElementById('dailyConsumption').textContent = `${dailyConsumption.toFixed(0)} L`;
+            document.getElementById('dailyReplenishment').textContent = `${dailyReplenishment.toFixed(0)} L`;
+            
+            const savings = dailyReplenishment - dailyConsumption;
+            document.getElementById('waterSavings').textContent = `${savings.toFixed(0)} L`;
+            document.getElementById('waterSavings').className = savings >= 0 ? 'metric-value status-positive' : 'metric-value status-critical';
+        }
+        
+        function generateReport() {
+            const reportData = {
+                timestamp: new Date().toISOString(),
+                dailyConsumption: document.getElementById('dailyConsumption').textContent,
+                dailyReplenishment: document.getElementById('dailyReplenishment').textContent,
+                waterSavings: document.getElementById('waterSavings').textContent,
+                replenishmentRatio: document.getElementById('replenishmentRatio').textContent,
+                targetStatus: document.getElementById('targetStatus').textContent
             };
             
-            console.log('Adding test data:', testData);
-            
-            database.ref('waterFlow').set(testData)
-                .then(() => {
-                    console.log('✅ Test data added successfully');
-                    alert('✅ Test data added successfully!');
-                })
-                .catch((error) => {
-                    console.error('❌ Error adding test data:', error);
-                    alert('❌ Error: ' + error.message);
-                });
+            database.ref('reports').push(reportData);
+            alert('Sustainability report generated and saved!');
         }
-
-        // Show debug info
-        function showDebugInfo() {
-            const info = `
-🔍 Debug Information:
-• Firebase loaded: ${typeof firebase !== 'undefined'}
-• Database URL: ${firebaseConfig.databaseURL}
-• Chart initialized: ${flowChart ? 'Yes' : 'No'}
-• Console: Check F12 for detailed logs
-            `;
-            
-            alert(info);
-            console.log('Debug Info:', {
-                firebaseLoaded: typeof firebase !== 'undefined',
-                databaseURL: firebaseConfig.databaseURL,
-                chartInitialized: !!flowChart
+        
+        function exportData() {
+            database.ref('water_monitoring').once('value', (snapshot) => {
+                const data = snapshot.val();
+                const csv = convertToCSV(data);
+                downloadCSV(csv, 'water_monitoring_data.csv');
             });
         }
-
-        // Show error message
-        function showErrorMessage(message) {
-            const errorDiv = document.createElement('div');
-            errorDiv.className = 'error';
-            errorDiv.innerHTML = `<strong>⚠️ Error:</strong> ${message}`;
+        
+        function convertToCSV(data) {
+            const headers = ['Timestamp', 'Flow Rate (L/min)', 'Total Volume (L)', 'Water Level (cm)', 'Replenishment Ratio'];
+            let csv = headers.join(',') + '\n';
             
-            const container = document.querySelector('.container');
-            container.insertBefore(errorDiv, container.firstChild);
+            Object.values(data).forEach(record => {
+                const row = [
+                    new Date(record.timestamp * 1000).toLocaleString(),
+                    record.flowRate || 0,
+                    record.totalVolume || 0,
+                    record.waterLevel || 0,
+                    record.replenishmentRatio || 0
+                ];
+                csv += row.join(',') + '\n';
+            });
+            
+            return csv;
         }
-
-        // Initialize when page loads
-        document.addEventListener('DOMContentLoaded', function() {
-            console.log('Initializing Realtime Database dashboard...');
-            
-            if (typeof firebase === 'undefined') {
-                showErrorMessage('Firebase not loaded!');
-                return;
-            }
-            
-            if (!firebaseConfig.databaseURL || firebaseConfig.databaseURL.includes('your-project')) {
-                showErrorMessage('Firebase not configured! Update the databaseURL.');
-                return;
-            }
-            
-            initChart();
-            setupRealtimeListener();
-            
-            console.log('Dashboard initialized');
-        });
+        
+        function downloadCSV(csv, filename) {
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.setAttribute('hidden', '');
+            a.setAttribute('href', url);
+            a.setAttribute('download', filename);
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        }
     </script>
 </body>
 </html>
