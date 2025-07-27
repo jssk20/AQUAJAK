@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Water Positivity Tracker</title>
+    <title>Water Flow - Realtime Database</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.23.0/firebase-app-compat.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.23.0/firebase-firestore-compat.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.23.0/firebase-database-compat.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
     <style>
         * {
@@ -32,7 +32,7 @@
         }
         
         .header {
-            background: linear-gradient(45deg, #4facfe 0%, #00f2fe 100%);
+            background: linear-gradient(45deg, #ff6b6b 0%, #ffa500 100%);
             color: white;
             padding: 30px;
             text-align: center;
@@ -42,11 +42,6 @@
             font-size: 2.5rem;
             margin-bottom: 10px;
             text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-        }
-        
-        .header p {
-            font-size: 1.1rem;
-            opacity: 0.9;
         }
         
         .stats-grid {
@@ -62,18 +57,16 @@
             padding: 25px;
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
             border-left: 5px solid;
-            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            transition: transform 0.3s ease;
         }
         
         .stat-card:hover {
             transform: translateY(-5px);
-            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.15);
         }
         
-        .stat-card.flow-rate { border-left-color: #4facfe; }
-        .stat-card.total-volume { border-left-color: #43e97b; }
-        .stat-card.status { border-left-color: #fa709a; }
-        .stat-card.efficiency { border-left-color: #fee140; }
+        .stat-card.flow-rate { border-left-color: #ff6b6b; }
+        .stat-card.total-volume { border-left-color: #4ecdc4; }
+        .stat-card.status { border-left-color: #ffa500; }
         
         .stat-value {
             font-size: 2.5rem;
@@ -88,23 +81,12 @@
             letter-spacing: 1px;
         }
         
-        .charts-section {
-            padding: 0 30px 30px;
-        }
-        
         .chart-container {
             background: white;
             border-radius: 15px;
             padding: 25px;
-            margin-bottom: 25px;
+            margin: 25px 30px;
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-        }
-        
-        .chart-title {
-            font-size: 1.5rem;
-            margin-bottom: 20px;
-            color: #333;
-            text-align: center;
         }
         
         .status-indicator {
@@ -116,8 +98,8 @@
             animation: pulse 2s infinite;
         }
         
-        .status-connected { background-color: #43e97b; }
-        .status-disconnected { background-color: #fa709a; }
+        .status-connected { background-color: #4ecdc4; }
+        .status-disconnected { background-color: #ff6b6b; }
         
         @keyframes pulse {
             0% { opacity: 1; }
@@ -125,24 +107,20 @@
             100% { opacity: 1; }
         }
         
-        .control-panel {
-            padding: 0 30px 30px;
-        }
-        
         .controls {
             background: white;
             border-radius: 15px;
             padding: 25px;
+            margin: 0 30px 30px;
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
             display: flex;
             gap: 15px;
             flex-wrap: wrap;
-            align-items: center;
             justify-content: center;
         }
         
         .btn {
-            background: linear-gradient(45deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(45deg, #ff6b6b 0%, #ffa500 100%);
             color: white;
             border: none;
             padding: 12px 24px;
@@ -150,27 +128,11 @@
             cursor: pointer;
             font-size: 1rem;
             transition: all 0.3s ease;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
         }
         
         .btn:hover {
             transform: translateY(-2px);
             box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
-        }
-        
-        @media (max-width: 768px) {
-            .header h1 { font-size: 2rem; }
-            .stats-grid { grid-template-columns: 1fr; padding: 20px; }
-            .charts-section { padding: 0 20px 20px; }
-            .control-panel { padding: 0 20px 20px; }
-            .stat-value { font-size: 2rem; }
-        }
-        
-        .loading {
-            text-align: center;
-            padding: 40px;
-            font-size: 1.2rem;
-            color: #666;
         }
         
         .error {
@@ -186,8 +148,8 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>💧 Water Positivity Tracker</h1>
-            <p>Real-time monitoring of your water flow system</p>
+            <h1>🔥 Water Flow - Realtime Database</h1>
+            <p>Real-time monitoring with Firebase Realtime Database</p>
         </div>
         
         <div class="stats-grid">
@@ -206,67 +168,51 @@
                 </div>
                 <div class="stat-label">System Status</div>
             </div>
-            <div class="stat-card efficiency">
-                <div class="stat-value" id="efficiency">--</div>
-                <div class="stat-label">Daily Efficiency</div>
-            </div>
         </div>
         
-        <div class="charts-section">
-            <div class="chart-container">
-                <h3 class="chart-title">Real-time Flow Rate</h3>
-                <canvas id="flowChart" width="400" height="200"></canvas>
-            </div>
-            
-            <div class="chart-container">
-                <h3 class="chart-title">Daily Volume Usage</h3>
-                <canvas id="volumeChart" width="400" height="200"></canvas>
-            </div>
+        <div class="chart-container">
+            <h3>Real-time Flow Rate</h3>
+            <canvas id="flowChart" width="400" height="200"></canvas>
         </div>
         
-        <div class="control-panel">
-            <div class="controls">
-                <button class="btn" onclick="resetCounters()">Reset Counters</button>
-                <button class="btn" onclick="exportData()">Export Data</button>
-                <button class="btn" onclick="toggleMonitoring()">Toggle Monitoring</button>
-            </div>
+        <div class="controls">
+            <button class="btn" onclick="testConnection()">Test Connection</button>
+            <button class="btn" onclick="addTestData()">Add Test Data</button>
+            <button class="btn" onclick="showDebugInfo()">Debug Info</button>
         </div>
     </div>
 
     <script>
-        // Firebase Configuration (Replace with your config)
+        // Firebase Configuration for Realtime Database
         const firebaseConfig = {
-           apiKey: "AIzaSyBUorLVBU0SxhX3xLdmzc21JcLhUyl974c",
+          apiKey: "AIzaSyBUorLVBU0SxhX3xLdmzc21JcLhUyl974c",
   authDomain: "aqua-jak-db26a.firebaseapp.com",
   projectId: "aqua-jak-db26a",
   storageBucket: "aqua-jak-db26a.firebasestorage.app",
   messagingSenderId: "511642149238",
   appId: "1:511642149238:web:fa202dd9ae4f4400155a57",
-  measurementId: "G-42PQMQNXF6"
+  measurementId: "G-42PQMQNXF6",
+            databaseURL: "https://aqua-jak-db26a-default-rtdb.firebaseio.com/"
         };
 
         // Initialize Firebase
         firebase.initializeApp(firebaseConfig);
-        const db = firebase.firestore();
+        const database = firebase.database();
 
-        // Chart instances
-        let flowChart, volumeChart;
-        let flowData = [];
-        let volumeData = [];
-        let isMonitoring = true;
+        let flowChart;
 
-        // Initialize charts
-        function initCharts() {
-            const flowCtx = document.getElementById('flowChart').getContext('2d');
-            flowChart = new Chart(flowCtx, {
+        // Initialize chart
+        function initChart() {
+            const ctx = document.getElementById('flowChart').getContext('2d');
+            flowChart = new Chart(ctx, {
                 type: 'line',
                 data: {
                     labels: [],
                     datasets: [{
                         label: 'Flow Rate (L/min)',
                         data: [],
-                        borderColor: '#4facfe',
-                        backgroundColor: 'rgba(79, 172, 254, 0.1)',
+                        borderColor: '#ff6b6b',
+                        backgroundColor: 'rgba(255, 107, 107, 0.1)',
                         tension: 0.4,
                         fill: true
                     }]
@@ -280,44 +226,6 @@
                                 display: true,
                                 text: 'Flow Rate (L/min)'
                             }
-                        },
-                        x: {
-                            title: {
-                                display: true,
-                                text: 'Time'
-                            }
-                        }
-                    },
-                    plugins: {
-                        legend: {
-                            display: false
-                        }
-                    }
-                }
-            });
-
-            const volumeCtx = document.getElementById('volumeChart').getContext('2d');
-            volumeChart = new Chart(volumeCtx, {
-                type: 'bar',
-                data: {
-                    labels: [],
-                    datasets: [{
-                        label: 'Volume (L)',
-                        data: [],
-                        backgroundColor: 'rgba(67, 233, 123, 0.8)',
-                        borderColor: '#43e97b',
-                        borderWidth: 2
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            title: {
-                                display: true,
-                                text: 'Volume (L)'
-                            }
                         }
                     },
                     plugins: {
@@ -329,130 +237,61 @@
             });
         }
 
-        // Listen to Firestore changes
+        // Setup real-time listener for Realtime Database
         function setupRealtimeListener() {
-            console.log('Setting up Firestore real-time listener...');
+            console.log('Setting up Realtime Database listener...');
             
-            // First, try to get the latest document to test connection
-            db.collection('waterFlow')
-                .orderBy('timestamp', 'desc')
-                .limit(1)
-                .get()
-                .then((snapshot) => {
-                    console.log('Initial Firestore query successful, documents found:', snapshot.size);
-                    if (!snapshot.empty) {
-                        const data = snapshot.docs[0].data();
-                        console.log('Latest data:', data);
-                        updateUI(data);
-                        updateCharts(data);
-                        updateConnectionStatus(true);
-                    } else {
-                        console.log('No documents found in waterFlow collection');
-                        updateConnectionStatus(false);
-                    }
-                })
-                .catch((error) => {
-                    console.error('Error getting initial data:', error);
-                    updateConnectionStatus(false);
-                });
-
-            // Set up real-time listener
-            const unsubscribe = db.collection('waterFlow')
-                .orderBy('timestamp', 'desc')
-                .limit(1)
-                .onSnapshot((snapshot) => {
-                    console.log('Firestore snapshot received, size:', snapshot.size);
-                    
-                    if (snapshot.empty) {
-                        console.log('Snapshot is empty');
-                        return;
-                    }
-
-                    snapshot.docChanges().forEach((change) => {
-                        console.log('Document change type:', change.type);
-                        const data = change.doc.data();
-                        console.log('Document data:', data);
-                        
-                        if (change.type === 'added' || change.type === 'modified') {
-                            updateUI(data);
-                            updateCharts(data);
-                            updateConnectionStatus(true);
-                        }
-                    });
-                }, (error) => {
-                    console.error('Error in Firestore listener:', error);
-                    console.error('Error code:', error.code);
-                    console.error('Error message:', error.message);
-                    updateConnectionStatus(false);
-                    
-                    // Show error message to user
-                    showErrorMessage('Firestore connection error: ' + error.message);
-                });
-
-            // Alternative: Poll for updates every 5 seconds as fallback
-            setInterval(() => {
-                if (!isMonitoring) return;
+            // Listen to the waterFlow node
+            const waterFlowRef = database.ref('waterFlow');
+            
+            waterFlowRef.on('value', (snapshot) => {
+                const data = snapshot.val();
+                console.log('Realtime Database data received:', data);
                 
-                db.collection('waterFlow')
-                    .orderBy('timestamp', 'desc')
-                    .limit(1)
-                    .get()
-                    .then((snapshot) => {
-                        if (!snapshot.empty) {
-                            const data = snapshot.docs[0].data();
-                            const timestamp = data.timestamp ? data.timestamp.toDate().getTime() : 0;
-                            
-                            // Only update if this is newer data
-                            if (timestamp > (window.lastUpdateTime || 0)) {
-                                console.log('Polling: New data found', data);
-                                updateUI(data);
-                                updateCharts(data);
-                                updateConnectionStatus(true);
-                                window.lastUpdateTime = timestamp;
-                            }
-                        }
-                    })
-                    .catch((error) => {
-                        console.error('Polling error:', error);
-                    });
-            }, 5000);
+                if (data) {
+                    updateUI(data);
+                    updateChart(data);
+                    updateConnectionStatus(true);
+                } else {
+                    console.log('No data available');
+                    updateConnectionStatus(false);
+                }
+            }, (error) => {
+                console.error('Realtime Database error:', error);
+                updateConnectionStatus(false);
+                showErrorMessage('Database connection error: ' + error.message);
+            });
         }
 
         // Update UI elements
         function updateUI(data) {
-            console.log('Updating UI with data:', data);
+            console.log('Updating UI with:', data);
             
-            // Handle different timestamp formats
-            let timestamp;
-            if (data.timestamp) {
-                if (data.timestamp.toDate) {
-                    timestamp = data.timestamp.toDate();
-                } else if (data.timestamp.seconds) {
-                    timestamp = new Date(data.timestamp.seconds * 1000);
-                } else {
-                    timestamp = new Date(data.timestamp);
-                }
-            } else {
-                timestamp = new Date();
+            document.getElementById('flowRate').textContent = (data.flowRate || 0).toFixed(2);
+            document.getElementById('totalVolume').textContent = (data.totalVolume || 0).toFixed(2);
+            
+            const timestamp = new Date(parseInt(data.timestamp) || Date.now());
+            document.getElementById('connectionStatus').textContent = `Connected (${timestamp.toLocaleTimeString()})`;
+        }
+
+        // Update chart
+        function updateChart(data) {
+            if (!flowChart) return;
+            
+            const now = new Date();
+            const timeLabel = now.toLocaleTimeString();
+            const flowRate = data.flowRate || 0;
+
+            flowChart.data.labels.push(timeLabel);
+            flowChart.data.datasets[0].data.push(flowRate);
+            
+            // Keep only last 20 data points
+            if (flowChart.data.labels.length > 20) {
+                flowChart.data.labels.shift();
+                flowChart.data.datasets[0].data.shift();
             }
             
-            // Update flow rate
-            const flowRate = data.flowRate || 0;
-            document.getElementById('flowRate').textContent = flowRate.toFixed(2);
-            
-            // Update total volume
-            const totalVolume = data.totalVolume || 0;
-            document.getElementById('totalVolume').textContent = totalVolume.toFixed(2);
-            
-            // Calculate efficiency (example: based on expected vs actual flow)
-            const efficiency = Math.min(100, Math.max(0, (flowRate / 5.0) * 100)); // Assuming 5 L/min is optimal
-            document.getElementById('efficiency').textContent = efficiency.toFixed(0) + '%';
-            
-            // Update last updated time
-            const timeString = timestamp.toLocaleTimeString();
-            document.getElementById('connectionStatus').textContent = `Connected (${timeString})`;
-            
-            updateConnectionStatus(true);
+            flowChart.update('none');
         }
 
         // Update connection status
@@ -462,200 +301,28 @@
             
             if (connected) {
                 statusIndicator.className = 'status-indicator status-connected';
-                statusText.textContent = 'Connected';
+                if (!statusText.textContent.includes('Connected')) {
+                    statusText.textContent = 'Connected';
+                }
             } else {
                 statusIndicator.className = 'status-indicator status-disconnected';
                 statusText.textContent = 'Disconnected';
             }
         }
 
-        // Update charts with new data
-        function updateCharts(data) {
-            console.log('Updating charts with data:', data);
+        // Test connection
+        function testConnection() {
+            console.log('Testing Realtime Database connection...');
             
-            const flowRate = data.flowRate || 0;
-            const totalVolume = data.totalVolume || 0;
-            
-            // Handle timestamp
-            let timestamp;
-            if (data.timestamp) {
-                if (data.timestamp.toDate) {
-                    timestamp = data.timestamp.toDate();
-                } else if (data.timestamp.seconds) {
-                    timestamp = new Date(data.timestamp.seconds * 1000);
+            database.ref('.info/connected').once('value', (snapshot) => {
+                if (snapshot.val() === true) {
+                    console.log('✅ Connected to Realtime Database');
+                    alert('✅ Connected to Realtime Database!');
                 } else {
-                    timestamp = new Date(data.timestamp);
+                    console.log('❌ Not connected to Realtime Database');
+                    alert('❌ Not connected to Realtime Database');
                 }
-            } else {
-                timestamp = new Date();
-            }
-            
-            const timeLabel = timestamp.toLocaleTimeString();
-
-            // Update flow chart
-            if (flowChart) {
-                flowChart.data.labels.push(timeLabel);
-                flowChart.data.datasets[0].data.push(flowRate);
-                
-                // Keep only last 20 data points
-                if (flowChart.data.labels.length > 20) {
-                    flowChart.data.labels.shift();
-                    flowChart.data.datasets[0].data.shift();
-                }
-                
-                flowChart.update('none');
-            }
-
-            // Update volume chart (hourly aggregation)
-            if (volumeChart) {
-                const hourLabel = timestamp.getHours() + ':00';
-                const lastIndex = volumeChart.data.labels.length - 1;
-                
-                if (volumeChart.data.labels[lastIndex] === hourLabel) {
-                    // Update existing hour
-                    volumeChart.data.datasets[0].data[lastIndex] = Math.max(
-                        volumeChart.data.datasets[0].data[lastIndex],
-                        totalVolume
-                    );
-                } else {
-                    // Add new hour
-                    volumeChart.data.labels.push(hourLabel);
-                    volumeChart.data.datasets[0].data.push(totalVolume);
-                    
-                    // Keep only last 24 hours
-                    if (volumeChart.data.labels.length > 24) {
-                        volumeChart.data.labels.shift();
-                        volumeChart.data.datasets[0].data.shift();
-                    }
-                }
-                
-                volumeChart.update('none');
-            }
-        }
-
-        // Control functions
-        function resetCounters() {
-            if (confirm('Are you sure you want to reset all counters?')) {
-                db.collection('waterFlow').add({
-                    flowRate: 0,
-                    totalVolume: 0,
-                    timestamp: firebase.firestore.FieldValue.serverTimestamp(),
-                    action: 'reset'
-                });
-            }
-        }
-
-        function exportData() {
-            db.collection('waterFlow')
-                .orderBy('timestamp', 'desc')
-                .limit(1000)
-                .get()
-                .then((querySnapshot) => {
-                    let csv = 'Timestamp,Flow Rate (L/min),Total Volume (L)\n';
-                    querySnapshot.forEach((doc) => {
-                        const data = doc.data();
-                        const timestamp = data.timestamp ? data.timestamp.toDate().toISOString() : new Date().toISOString();
-                        csv += `${timestamp},${data.flowRate},${data.totalVolume}\n`;
-                    });
-                    
-                    const blob = new Blob([csv], { type: 'text/csv' });
-                    const url = window.URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = 'water_flow_data.csv';
-                    a.click();
-                });
-        }
-
-        function toggleMonitoring() {
-            isMonitoring = !isMonitoring;
-            const btn = event.target;
-            btn.textContent = isMonitoring ? 'Pause Monitoring' : 'Resume Monitoring';
-            btn.style.background = isMonitoring ? 
-                'linear-gradient(45deg, #667eea 0%, #764ba2 100%)' : 
-                'linear-gradient(45deg, #fa709a 0%, #fee140 100%)';
-        }
-
-        // Initialize everything when page loads
-        document.addEventListener('DOMContentLoaded', function() {
-            console.log('Dashboard loading...');
-            
-            // Check if Firebase is loaded
-            if (typeof firebase === 'undefined') {
-                console.error('Firebase not loaded!');
-                showErrorMessage('Firebase SDK not loaded. Check your internet connection.');
-                return;
-            }
-            
-            // Check Firebase configuration
-            if (!firebaseConfig.projectId || firebaseConfig.projectId === 'your-project-id') {
-                console.error('Firebase not configured!');
-                showErrorMessage('Firebase not configured. Please update the configuration in the code.');
-                return;
-            }
-            
-            console.log('Firebase config:', firebaseConfig);
-            
-            try {
-                initCharts();
-                setupRealtimeListener();
-                
-                console.log('Dashboard initialized successfully');
-                
-                // Add debug button for testing
-                addDebugControls();
-                
-            } catch (error) {
-                console.error('Error initializing dashboard:', error);
-                showErrorMessage('Error initializing dashboard: ' + error.message);
-            }
-        });
-
-        // Show error messages to user
-        function showErrorMessage(message) {
-            const errorDiv = document.createElement('div');
-            errorDiv.className = 'error';
-            errorDiv.innerHTML = `
-                <strong>⚠️ Error:</strong> ${message}<br>
-                <small>Check the browser console (F12) for more details.</small>
-            `;
-            
-            const container = document.querySelector('.container');
-            container.insertBefore(errorDiv, container.firstChild);
-        }
-
-        // Add debug controls for testing
-        function addDebugControls() {
-            const debugSection = document.createElement('div');
-            debugSection.innerHTML = `
-                <div class="control-panel">
-                    <div class="controls">
-                        <button class="btn" onclick="testFirestoreConnection()">Test Connection</button>
-                        <button class="btn" onclick="addTestData()">Add Test Data</button>
-                        <button class="btn" onclick="showDebugInfo()">Debug Info</button>
-                    </div>
-                </div>
-            `;
-            
-            document.querySelector('.container').appendChild(debugSection);
-        }
-
-        // Test Firestore connection
-        function testFirestoreConnection() {
-            console.log('Testing Firestore connection...');
-            
-            db.collection('waterFlow')
-                .limit(1)
-                .get()
-                .then((snapshot) => {
-                    console.log('✅ Firestore connection successful!');
-                    console.log('Documents found:', snapshot.size);
-                    alert('✅ Firestore connection successful! Found ' + snapshot.size + ' documents.');
-                })
-                .catch((error) => {
-                    console.error('❌ Firestore connection failed:', error);
-                    alert('❌ Firestore connection failed: ' + error.message);
-                });
+            });
         }
 
         // Add test data
@@ -663,7 +330,7 @@
             const testData = {
                 flowRate: Math.random() * 3 + 1,
                 totalVolume: Math.random() * 100 + 50,
-                timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                timestamp: Date.now().toString(),
                 sensorStatus: 'active',
                 deviceId: 'TEST_DEVICE',
                 wifiRSSI: -45
@@ -671,53 +338,64 @@
             
             console.log('Adding test data:', testData);
             
-            db.collection('waterFlow')
-                .add(testData)
-                .then((docRef) => {
-                    console.log('✅ Test data added with ID:', docRef.id);
+            database.ref('waterFlow').set(testData)
+                .then(() => {
+                    console.log('✅ Test data added successfully');
                     alert('✅ Test data added successfully!');
                 })
                 .catch((error) => {
                     console.error('❌ Error adding test data:', error);
-                    alert('❌ Error adding test data: ' + error.message);
+                    alert('❌ Error: ' + error.message);
                 });
         }
 
-        // Show debug information
+        // Show debug info
         function showDebugInfo() {
             const info = `
 🔍 Debug Information:
 • Firebase loaded: ${typeof firebase !== 'undefined'}
-• Project ID: ${firebaseConfig.projectId}
-• Monitoring: ${isMonitoring}
-• Charts initialized: ${flowChart && volumeChart ? 'Yes' : 'No'}
-• Last update: ${window.lastUpdateTime ? new Date(window.lastUpdateTime).toLocaleString() : 'Never'}
-• Console logs: Check F12 Developer Console for detailed logs
+• Database URL: ${firebaseConfig.databaseURL}
+• Chart initialized: ${flowChart ? 'Yes' : 'No'}
+• Console: Check F12 for detailed logs
             `;
             
             alert(info);
             console.log('Debug Info:', {
                 firebaseLoaded: typeof firebase !== 'undefined',
-                projectId: firebaseConfig.projectId,
-                monitoring: isMonitoring,
-                chartsInitialized: !!(flowChart && volumeChart),
-                lastUpdate: window.lastUpdateTime
+                databaseURL: firebaseConfig.databaseURL,
+                chartInitialized: !!flowChart
             });
         }
 
-        // Add some demo data for testing
-        function addDemoData() {
-            const demoData = {
-                flowRate: Math.random() * 3 + 1,
-                totalVolume: Math.random() * 100 + 50,
-                timestamp: firebase.firestore.FieldValue.serverTimestamp()
-            };
+        // Show error message
+        function showErrorMessage(message) {
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'error';
+            errorDiv.innerHTML = `<strong>⚠️ Error:</strong> ${message}`;
             
-            db.collection('waterFlow').add(demoData);
+            const container = document.querySelector('.container');
+            container.insertBefore(errorDiv, container.firstChild);
         }
 
-        // Uncomment to add demo data every 5 seconds
-        // setInterval(addDemoData, 5000);
+        // Initialize when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('Initializing Realtime Database dashboard...');
+            
+            if (typeof firebase === 'undefined') {
+                showErrorMessage('Firebase not loaded!');
+                return;
+            }
+            
+            if (!firebaseConfig.databaseURL || firebaseConfig.databaseURL.includes('your-project')) {
+                showErrorMessage('Firebase not configured! Update the databaseURL.');
+                return;
+            }
+            
+            initChart();
+            setupRealtimeListener();
+            
+            console.log('Dashboard initialized');
+        });
     </script>
 </body>
 </html>
